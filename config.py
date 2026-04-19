@@ -23,6 +23,7 @@ USE_LLM = True
 
 # Classification labels
 VALID_CATEGORIES = [
+    "self",
     "promotions",
     "bank",
     "job",

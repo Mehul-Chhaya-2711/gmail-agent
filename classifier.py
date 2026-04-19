@@ -115,6 +115,14 @@ def classify_email(email_record: Dict[str, Any]) -> Dict[str, Any]:
             "reason": f"Matched memory rule for sender: {sender}",
         }
 
+    if "mehulchhaya2012@gmail.com" in sender.lower():
+        return {
+            "category": "self",
+            "classification_source": "rule",
+            "confidence": 0.99,
+            "reason": "Sender matches the user's own Gmail address",
+        }
+
     searchable_text = _normalize_text(email_record)
 
     if _contains_any(searchable_text, BANK_KEYWORDS):

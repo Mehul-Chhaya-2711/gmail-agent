@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+
+# Streamlit / local config
+.streamlit/secrets.toml
+
+# Gmail / OAuth secrets
+credentials.json
+token.json
+client_secret*.json
+
+# Reports / generated files
+data/reports/*.csv
+data/reports/*.xlsx
+data/reports/*.json
+data/reports/*.txt
+
+# OS / editor
+.DS_Store
+.vscode/

@@ -8,15 +8,15 @@ __pycache__/
 venv/
 env/
 
-# Streamlit / local config
-.streamlit/secrets.toml
-
-# Gmail / OAuth secrets
+# Secrets
 credentials.json
 token.json
 client_secret*.json
+.env
+.env.*
+.streamlit/secrets.toml
 
-# Reports / generated files
+# Reports
 data/reports/*.csv
 data/reports/*.xlsx
 data/reports/*.json

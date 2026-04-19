@@ -82,12 +82,11 @@ That is a real decision workflow, not a single inference call.
 #### 2. State and memory
 The agent keeps persistent memory in:
 
-```text
 data/memory.json
 
 This lets it improve over time. Once a sender or sender domain is learned, future similar emails can bypass the LLM entirely.
 
-3. Human-in-the-loop
+#### 3. Human-in-the-loop
 
 The app does not auto-trust every uncertain LLM answer.
 
@@ -99,7 +98,7 @@ approved knowledge is persisted
 
 This is a strong agentic pattern for safety-critical automation.
 
-4. Tool use
+#### 4. Tool use
 
 The agent coordinates multiple tools/services:
 
@@ -108,7 +107,8 @@ Gemini API for fallback reasoning
 Streamlit for human review
 local memory store for learning
 reporting layer for auditability
-5. Feedback loop
+
+#### 5. Feedback loop
 
 The system closes the loop:
 

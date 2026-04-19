@@ -7,6 +7,7 @@ Stores human-verified classifications so future runs can reuse them.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -61,13 +62,6 @@ def lookup_memory(sender: str, memory_data: Dict[str, str]) -> Optional[str]:
     Matching logic:
     - exact sender match
     - partial substring match
-
-    Args:
-        sender: sender string from email
-        memory_data: loaded memory dictionary
-
-    Returns:
-        Category if matched, otherwise None
     """
     sender_lower = (sender or "").strip().lower()
 
@@ -85,6 +79,26 @@ def lookup_memory(sender: str, memory_data: Dict[str, str]) -> Optional[str]:
     return None
 
 
+def extract_sender_email(sender: str) -> str:
+    """
+    Extract plain email address from a sender string like:
+    'Amazon <store-news@amazon.in>'
+    """
+    sender = (sender or "").strip().lower()
+    match = re.search(r'[\w\.-]+@[\w\.-]+\.\w+', sender)
+    return match.group(0) if match else sender
+
+
+def extract_sender_domain(sender: str) -> str:
+    """
+    Extract domain from sender email.
+    """
+    email = extract_sender_email(sender)
+    if "@" in email:
+        return email.split("@", 1)[1]
+    return email
+
+
 def add_memory_entry(sender_key: str, category: str) -> None:
     """
     Add or update one memory mapping.
@@ -92,3 +106,18 @@ def add_memory_entry(sender_key: str, category: str) -> None:
     memory_data = load_memory()
     memory_data[sender_key.strip().lower()] = category
     save_memory(memory_data)
+
+
+def learn_sender(sender: str, category: str, use_domain: bool = True) -> str:
+    """
+    Learn a sender pattern into memory.
+
+    If use_domain is True, store domain-level memory like 'amazon.in'.
+    Otherwise, store full sender email.
+
+    Returns:
+        The saved memory key.
+    """
+    key = extract_sender_domain(sender) if use_domain else extract_sender_email(sender)
+    add_memory_entry(key, category)
+    return key

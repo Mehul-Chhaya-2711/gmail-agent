@@ -33,6 +33,8 @@ VALID_CATEGORIES = [
     "AMBIGUOUS",
 ]
 
+REVIEWABLE_CATEGORIES = ["self", "promotions", "bank", "job", "utility", "personal"]
+
 # Report filenames
 SUMMARY_REPORT_FILE = REPORTS_DIR / "summary_report.csv"
 DETAILED_REPORT_FILE = REPORTS_DIR / "detailed_report.xlsx"

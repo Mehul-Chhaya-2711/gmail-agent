@@ -14,6 +14,7 @@ MEMORY_FILE = DATA_DIR / "memory.json"
 # Gmail scan settings
 INITIAL_EMAIL_FETCH_COUNT = 50  # first-run safety limit
 MAX_EMAILS_PER_RUN = 500
+SCAN_SIZE_OPTIONS = [50, 100, 250, 500]
 MAX_LLM_EMAILS_PER_RUN = 15
 
 # Safety controls

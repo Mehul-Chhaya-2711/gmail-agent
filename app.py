@@ -1,27 +1,35 @@
 """
-Streamlit app for Gmail fetch + memory/rule classification + report generation.
+Streamlit app for Gmail fetch + classification + report generation with controlled batch scanning.
 """
 
 import pandas as pd
 import streamlit as st
 
 from classifier import classify_email
-from config import INITIAL_EMAIL_FETCH_COUNT
+from config import INITIAL_EMAIL_FETCH_COUNT, MAX_EMAILS_PER_RUN, SCAN_SIZE_OPTIONS
 from gmail_service import fetch_emails, get_gmail_service
 from report import save_reports
 
 st.set_page_config(page_title="Gmail Agent", page_icon="📧", layout="wide")
 
 st.title("Gmail Cleanup AI Agent")
-st.caption("Step 7: Classification with summary and detailed report generation")
+st.caption("Step 8: Controlled batch scanning with pagination")
 
-st.write("This step fetches emails, classifies them, and saves summary and detailed reports.")
+st.write("This step fetches emails in controlled batches and generates reports safely.")
+
+scan_size = st.selectbox(
+    "Choose scan size",
+    options=SCAN_SIZE_OPTIONS,
+    index=SCAN_SIZE_OPTIONS.index(INITIAL_EMAIL_FETCH_COUNT),
+)
+
+st.caption(f"Current max allowed per run: {MAX_EMAILS_PER_RUN}")
 
 if st.button("Scan, Classify, and Generate Reports"):
     try:
-        with st.spinner("Fetching, classifying, and generating reports..."):
+        with st.spinner(f"Fetching and processing {scan_size} emails..."):
             service = get_gmail_service()
-            emails = fetch_emails(service, max_results=INITIAL_EMAIL_FETCH_COUNT)
+            emails = fetch_emails(service, max_results=min(scan_size, MAX_EMAILS_PER_RUN))
 
             classified_emails = []
             for email in emails:

@@ -1,6 +1,6 @@
 """
 Gmail service setup and email fetching utilities.
-Handles OAuth authentication and safe read-only inbox scanning.
+Handles OAuth authentication and safe inbox scanning.
 """
 
 from __future__ import annotations
@@ -58,9 +58,6 @@ def get_gmail_service():
 
 
 def _extract_header(headers: List[Dict[str, str]], name: str) -> str:
-    """
-    Safely extract a named header from Gmail message headers.
-    """
     for header in headers:
         if header.get("name", "").lower() == name.lower():
             return header.get("value", "")
@@ -68,9 +65,6 @@ def _extract_header(headers: List[Dict[str, str]], name: str) -> str:
 
 
 def _decode_base64url(data: str) -> str:
-    """
-    Decode Gmail base64url encoded content safely.
-    """
     if not data:
         return ""
 
@@ -82,10 +76,6 @@ def _decode_base64url(data: str) -> str:
 
 
 def _extract_body_from_payload(payload: Dict[str, Any]) -> str:
-    """
-    Extract plain text body from Gmail message payload.
-    Falls back carefully if multipart sections are present.
-    """
     body_data = payload.get("body", {}).get("data")
     if body_data:
         return _decode_base64url(body_data)
@@ -99,26 +89,26 @@ def _extract_body_from_payload(payload: Dict[str, Any]) -> str:
     return ""
 
 
-def fetch_emails(service, max_results: int = 50, query: Optional[str] = None) -> List[Dict[str, Any]]:
+def fetch_emails_page(
+    service,
+    page_size: int = 50,
+    query: Optional[str] = None,
+    page_token: Optional[str] = None,
+) -> Dict[str, Any]:
     """
-    Fetch a batch of emails from Gmail.
-
-    Args:
-        service: Authenticated Gmail API service
-        max_results: Number of emails to fetch
-        query: Optional Gmail search query
-
-    Returns:
-        List of normalized email dictionaries
+    Fetch one page of Gmail message metadata and return normalized emails plus next page token.
     """
     response = service.users().messages().list(
         userId="me",
-        maxResults=max_results,
+        maxResults=page_size,
         q=query,
+        pageToken=page_token,
     ).execute()
 
     messages = response.get("messages", [])
-    results: List[Dict[str, Any]] = []
+    next_page_token = response.get("nextPageToken")
+
+    emails: List[Dict[str, Any]] = []
 
     for msg in messages:
         msg_id = msg["id"]
@@ -137,7 +127,7 @@ def fetch_emails(service, max_results: int = 50, query: Optional[str] = None) ->
         snippet = full_message.get("snippet", "")
         body = _extract_body_from_payload(payload)
 
-        results.append(
+        emails.append(
             {
                 "email_id": msg_id,
                 "thread_id": full_message.get("threadId", ""),
@@ -149,4 +139,43 @@ def fetch_emails(service, max_results: int = 50, query: Optional[str] = None) ->
             }
         )
 
-    return results
+    return {
+        "emails": emails,
+        "next_page_token": next_page_token,
+    }
+
+
+def fetch_emails(
+    service,
+    max_results: int = 50,
+    query: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Fetch emails across pages until max_results is reached.
+    """
+    all_emails: List[Dict[str, Any]] = []
+    next_page_token: Optional[str] = None
+
+    while len(all_emails) < max_results:
+        remaining = max_results - len(all_emails)
+        page_size = min(remaining, 100)
+
+        page = fetch_emails_page(
+            service=service,
+            page_size=page_size,
+            query=query,
+            page_token=next_page_token,
+        )
+
+        emails = page["emails"]
+        next_page_token = page["next_page_token"]
+
+        if not emails:
+            break
+
+        all_emails.extend(emails)
+
+        if not next_page_token:
+            break
+
+    return all_emails[:max_results]

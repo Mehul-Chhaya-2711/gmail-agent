@@ -1,5 +1,5 @@
 """
-Temporary Streamlit app for Gmail fetch + memory/rule classification testing.
+Streamlit app for Gmail fetch + memory/rule classification + report generation.
 """
 
 import pandas as pd
@@ -8,48 +8,52 @@ import streamlit as st
 from classifier import classify_email
 from config import INITIAL_EMAIL_FETCH_COUNT
 from gmail_service import fetch_emails, get_gmail_service
+from report import save_reports
 
 st.set_page_config(page_title="Gmail Agent", page_icon="📧", layout="wide")
 
 st.title("Gmail Cleanup AI Agent")
-st.caption("Step 6: Memory-first and rule-based classification")
+st.caption("Step 7: Classification with summary and detailed report generation")
 
-st.write("This step fetches emails and classifies them using memory and rules.")
+st.write("This step fetches emails, classifies them, and saves summary and detailed reports.")
 
-if st.button("Scan and Classify Emails"):
+if st.button("Scan, Classify, and Generate Reports"):
     try:
-        with st.spinner("Fetching and classifying emails..."):
+        with st.spinner("Fetching, classifying, and generating reports..."):
             service = get_gmail_service()
             emails = fetch_emails(service, max_results=INITIAL_EMAIL_FETCH_COUNT)
 
-            enriched_rows = []
+            classified_emails = []
             for email in emails:
-                result = classify_email(email)
-                enriched_rows.append(
+                classification = classify_email(email)
+                classified_emails.append(
                     {
-                        "email_id": email["email_id"],
-                        "sender": email["sender"],
-                        "subject": email["subject"],
-                        "date": email["date"],
-                        "category": result["category"],
-                        "classification_source": result["classification_source"],
-                        "confidence": result["confidence"],
-                        "reason": result["reason"],
+                        "email": email,
+                        "classification": classification,
+                        "action": "kept",
                     }
                 )
 
-        st.success(f"Fetched and classified {len(enriched_rows)} emails successfully.")
-
-        if enriched_rows:
-            df = pd.DataFrame(enriched_rows)
-            st.dataframe(df, use_container_width=True)
-
-            st.subheader("Category Counts")
-            st.dataframe(
-                df["category"].value_counts().rename_axis("category").reset_index(name="count"),
-                use_container_width=True,
+            summary_df, detailed_df = save_reports(
+                classified_emails=classified_emails,
+                before_email_count=len(emails),
+                after_email_count=len(emails),
             )
-        else:
-            st.info("No emails found.")
+
+        st.success(f"Processed {len(classified_emails)} emails and saved reports successfully.")
+
+        st.subheader("Detailed Report Preview")
+        st.dataframe(detailed_df, use_container_width=True)
+
+        st.subheader("Summary Report")
+        st.dataframe(summary_df, use_container_width=True)
+
+        st.subheader("Category Counts")
+        st.dataframe(
+            detailed_df["category"].value_counts().rename_axis("category").reset_index(name="count"),
+            use_container_width=True,
+        )
+
+        st.info("Reports saved to data/reports/ as CSV and Excel.")
     except Exception as exc:
         st.error(f"Error: {exc}")

@@ -20,9 +20,6 @@ from config import (
 def build_detailed_report_rows(
     classified_emails: List[Dict[str, Any]],
 ) -> List[Dict[str, Any]]:
-    """
-    Convert classified email objects into report rows.
-    """
     rows: List[Dict[str, Any]] = []
 
     for item in classified_emails:
@@ -51,9 +48,6 @@ def build_summary_report(
     before_email_count: int | None = None,
     after_email_count: int | None = None,
 ) -> pd.DataFrame:
-    """
-    Build a summary report DataFrame from detailed rows.
-    """
     df = pd.DataFrame(detailed_rows)
 
     if df.empty:
@@ -64,6 +58,7 @@ def build_summary_report(
             "llm_processed_count": 0,
             "rule_based_count": 0,
             "memory_based_count": 0,
+            "manual_review_count": 0,
             "deleted_emails_count": 0,
             "before_email_count": before_email_count if before_email_count is not None else 0,
             "after_email_count": after_email_count if after_email_count is not None else 0,
@@ -77,6 +72,7 @@ def build_summary_report(
         "llm_processed_count": int((df["classification_source"] == "llm").sum()),
         "rule_based_count": int((df["classification_source"] == "rule").sum()),
         "memory_based_count": int((df["classification_source"] == "memory").sum()),
+        "manual_review_count": int((df["classification_source"] == "manual_review").sum()),
         "deleted_emails_count": int((df["action"] == "trashed").sum()),
         "before_email_count": before_email_count if before_email_count is not None else int(len(df)),
         "after_email_count": after_email_count if after_email_count is not None else int(len(df)),
@@ -94,12 +90,6 @@ def save_reports(
     before_email_count: int | None = None,
     after_email_count: int | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Save detailed and summary reports to disk.
-
-    Returns:
-        tuple(summary_df, detailed_df)
-    """
     detailed_rows = build_detailed_report_rows(classified_emails)
     detailed_df = pd.DataFrame(detailed_rows)
     summary_df = build_summary_report(

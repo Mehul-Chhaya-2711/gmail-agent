@@ -4,12 +4,11 @@ Classification logic for the Gmail Cleanup AI Agent.
 Decision hierarchy:
 1. Memory
 2. Rule-based
-3. LLM fallback (later)
+3. LLM fallback
 """
 
 from __future__ import annotations
 
-import re
 from typing import Any, Dict
 
 from memory import load_memory, lookup_memory
@@ -78,9 +77,6 @@ PERSONAL_KEYWORDS = [
 
 
 def _normalize_text(email_record: Dict[str, Any]) -> str:
-    """
-    Build a single searchable text block from an email record.
-    """
     subject = email_record.get("subject", "") or ""
     sender = email_record.get("sender", "") or ""
     snippet = email_record.get("snippet", "") or ""
@@ -90,18 +86,12 @@ def _normalize_text(email_record: Dict[str, Any]) -> str:
 
 
 def _contains_any(text: str, keywords: list[str]) -> bool:
-    """
-    Return True if any keyword appears in text.
-    """
     return any(keyword.lower() in text for keyword in keywords)
 
 
 def classify_email(email_record: Dict[str, Any]) -> Dict[str, Any]:
     """
     Classify one email using memory first, then rules.
-
-    Returns:
-        Dict with category, classification_source, confidence, reason
     """
     sender = email_record.get("sender", "") or ""
     memory_data = load_memory()

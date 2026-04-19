@@ -6,6 +6,7 @@ Only used for emails not resolved by memory or rules.
 from __future__ import annotations
 
 import os
+import time
 from typing import Any, Dict, List
 
 import google.generativeai as genai
@@ -92,15 +93,11 @@ def classify_with_llm(email_record: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-import time
-
-
 def process_ambiguous_with_llm(classified_emails: List[Dict[str, Any]]) -> int:
     """
     Process ambiguous emails using Gemini with rate limiting.
-    Respects free-tier limits (5 requests per minute).
+    Respects free-tier limits.
     """
-
     processed = 0
 
     for item in classified_emails:
@@ -116,13 +113,9 @@ def process_ambiguous_with_llm(classified_emails: List[Dict[str, Any]]) -> int:
             llm_result = classify_with_llm(item["email"])
             item["classification"] = llm_result
             processed += 1
-
-            # 🔑 CRITICAL: rate limiting
-            time.sleep(12)  
-            # 60 sec / 5 requests = 12 sec per request
-
-        except Exception as e:
-            print(f"LLM error: {e}")
+            time.sleep(12)
+        except Exception as exc:
+            print(f"LLM error: {exc}")
             continue
 
     return processed

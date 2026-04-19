@@ -2,5 +2,22 @@
   "accounts.google.com": "bank",
   "noreply@accounts.google.com": "bank",
   "jobalert.naukri.com": "job",
-  "jobalert.indeed.com": "job"
+  "jobalert.indeed.com": "job",
+  "mailer.manipal.edu": "promotions",
+  "hello.scribd.com": "promotions",
+  "lifeiscalling-sports.com": "promotions",
+  "gamma.app": "promotions",
+  "10591036.brevosend.com": "promotions",
+  "mail.adobe.com": "promotions",
+  "in4.actcorp.in": "promotions",
+  "kaggle.com": "promotions",
+  "mail.audible.in": "promotions",
+  "eventzalley.com": "promotions",
+  "in.email.samsung.com": "promotions",
+  "newsletters.analyticsvidhya.com": "promotions",
+  "content.goibibo.com": "promotions",
+  "ted.com": "promotions",
+  "torrentpower.in": "promotions",
+  "e-redbus.in": "self",
+  "meetup.com": "self"
 }

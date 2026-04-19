@@ -1,10 +1,21 @@
 """
-Streamlit app for Gmail fetch + classification + reports + ambiguous review + Gemini fallback.
+Final Streamlit app for Gmail Cleanup AI Agent.
+Includes:
+- scan + classify
+- Gemini fallback
+- human review + learning
+- promotion preview
+- safe trashing
+- reports
+- simple command shortcuts
 """
+
+from __future__ import annotations
 
 import pandas as pd
 import streamlit as st
 
+from actions import bulk_trash_emails, get_deletable_emails
 from classifier import classify_email
 from config import (
     INITIAL_EMAIL_FETCH_COUNT,
@@ -21,12 +32,16 @@ from report import save_reports
 st.set_page_config(page_title="Gmail Agent", page_icon="📧", layout="wide")
 
 st.title("Gmail Cleanup AI Agent")
-st.caption("Step 10: Gemini fallback for ambiguous emails")
-
-st.write("This step adds Gemini classification for ambiguous emails with an LLM hard cap.")
+st.caption("Cloud-based Gmail cleanup with memory, rules, Gemini fallback, review, and safe trashing")
 
 if "last_classified_emails" not in st.session_state:
     st.session_state["last_classified_emails"] = []
+
+if "last_summary_df" not in st.session_state:
+    st.session_state["last_summary_df"] = None
+
+if "last_detailed_df" not in st.session_state:
+    st.session_state["last_detailed_df"] = None
 
 scan_size = st.selectbox(
     "Choose scan size",
@@ -37,7 +52,32 @@ scan_size = st.selectbox(
 st.caption(f"Current max allowed per run: {MAX_EMAILS_PER_RUN}")
 st.caption(f"Current max LLM emails per run: {MAX_LLM_EMAILS_PER_RUN}")
 
-if st.button("Scan, Classify, and Generate Reports"):
+command = st.text_input(
+    "Command input",
+    placeholder='Examples: "show marketing emails", "clean inbox safely", "scan 100 emails"',
+)
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    scan_clicked = st.button("Scan Emails")
+
+with col2:
+    process_llm_clicked = st.button("Process Ambiguous")
+
+with col3:
+    delete_promotions_clicked = st.button("Delete Promotions Safely")
+
+if command:
+    cmd = command.strip().lower()
+    if "show marketing" in cmd:
+        st.info('Shortcut recognized: showing promotional candidates below.')
+    elif "clean inbox safely" in cmd:
+        st.info('Shortcut recognized: scan, review promotions, then trash only promotions.')
+    elif "scan" in cmd:
+        st.info("Shortcut recognized. Use the scan button to execute the run.")
+
+if scan_clicked:
     try:
         with st.spinner(f"Fetching and processing {scan_size} emails..."):
             service = get_gmail_service()
@@ -62,38 +102,20 @@ if st.button("Scan, Classify, and Generate Reports"):
                 after_email_count=len(emails),
             )
 
+            st.session_state["last_summary_df"] = summary_df
+            st.session_state["last_detailed_df"] = detailed_df
+
         st.success(f"Processed {len(classified_emails)} emails and saved reports successfully.")
-
-        st.subheader("Detailed Report Preview")
-        st.dataframe(detailed_df, use_container_width=True)
-
-        st.subheader("Summary Report")
-        st.dataframe(summary_df, use_container_width=True)
-
-        st.subheader("Category Counts")
-        st.dataframe(
-            detailed_df["category"].value_counts().rename_axis("category").reset_index(name="count"),
-            use_container_width=True,
-        )
-
-        st.info("Reports saved to data/reports/ as CSV and Excel.")
     except Exception as exc:
-        st.error(f"Error: {exc}")
-
-st.divider()
-st.subheader("Process Ambiguous Emails with Gemini")
+        st.error(f"Error during scan: {exc}")
 
 classified_emails = st.session_state.get("last_classified_emails", [])
-ambiguous_before = [
-    item for item in classified_emails
-    if item["classification"].get("category") == "AMBIGUOUS"
-]
+summary_df = st.session_state.get("last_summary_df")
+detailed_df = st.session_state.get("last_detailed_df")
 
-st.write(f"Ambiguous emails currently waiting: {len(ambiguous_before)}")
-
-if st.button("Process Ambiguous with Gemini"):
+if process_llm_clicked:
     try:
-        with st.spinner("Processing with Gemini (rate-limited, may take ~1–2 minutes)..."):
+        with st.spinner("Processing with Gemini (rate-limited, may take ~1–3 minutes)..."):
             llm_processed = process_ambiguous_with_llm(classified_emails)
 
             summary_df, detailed_df = save_reports(
@@ -102,26 +124,64 @@ if st.button("Process Ambiguous with Gemini"):
                 after_email_count=len(classified_emails),
             )
 
+            st.session_state["last_summary_df"] = summary_df
+            st.session_state["last_detailed_df"] = detailed_df
+
         st.success(f"Gemini processed {llm_processed} ambiguous emails.")
-
-        st.subheader("Updated Detailed Report Preview")
-        st.dataframe(detailed_df, use_container_width=True)
-
-        st.subheader("Updated Summary Report")
-        st.dataframe(summary_df, use_container_width=True)
     except Exception as exc:
         st.error(f"Error during Gemini processing: {exc}")
+
+if delete_promotions_clicked:
+    try:
+        service = get_gmail_service()
+        deletable_items = get_deletable_emails(classified_emails)
+        email_ids = [item["email"]["email_id"] for item in deletable_items]
+
+        trashed_count = bulk_trash_emails(service, email_ids)
+
+        trashed_ids = set(email_ids[:trashed_count])
+        for item in classified_emails:
+            if item["email"]["email_id"] in trashed_ids:
+                item["action"] = "trashed"
+
+        before_count = len(classified_emails)
+        after_count = before_count - trashed_count
+
+        summary_df, detailed_df = save_reports(
+            classified_emails=classified_emails,
+            before_email_count=before_count,
+            after_email_count=after_count,
+        )
+
+        st.session_state["last_summary_df"] = summary_df
+        st.session_state["last_detailed_df"] = detailed_df
+
+        st.success(f"Safely moved {trashed_count} promotional emails to Gmail trash.")
+    except Exception as exc:
+        st.error(f"Error during safe trashing: {exc}")
+
+if detailed_df is not None and not detailed_df.empty:
+    st.divider()
+    st.subheader("Summary Report")
+    st.dataframe(summary_df, use_container_width=True)
+
+    st.subheader("Category Counts")
+    st.dataframe(
+        detailed_df["category"].value_counts().rename_axis("category").reset_index(name="count"),
+        use_container_width=True,
+    )
+
+    st.subheader("Detailed Report Preview")
+    st.dataframe(detailed_df, use_container_width=True)
 
 st.divider()
 st.subheader("Review Suggested Categories")
 
-review_items = st.session_state.get("last_classified_emails", [])
-
-if not review_items:
+if not classified_emails:
     st.info("No emails loaded in the current session.")
 else:
     llm_or_ambiguous = [
-        item for item in review_items
+        item for item in classified_emails
         if item["classification"].get("classification_source") in {"llm", "manual_review"}
         or item["classification"].get("category") == "AMBIGUOUS"
     ]
@@ -163,9 +223,9 @@ else:
                     key=f"review_memory_mode_{idx}",
                 )
 
-                col1, col2 = st.columns(2)
+                c1, c2 = st.columns(2)
 
-                with col1:
+                with c1:
                     if st.button(f"Approve and Learn email {idx + 1}", key=f"review_approve_{idx}"):
                         use_domain = memory_mode == "domain"
                         learned_key = learn_sender(
@@ -186,7 +246,7 @@ else:
                             f"Future similar emails should avoid LLM review."
                         )
 
-                with col2:
+                with c2:
                     if st.button(f"Reclassify only email {idx + 1}", key=f"review_reclassify_{idx}"):
                         item["classification"] = {
                             "category": selected_category,
@@ -200,16 +260,46 @@ else:
         if st.button("Regenerate Reports After Review"):
             try:
                 summary_df, detailed_df = save_reports(
-                    classified_emails=review_items,
-                    before_email_count=len(review_items),
-                    after_email_count=len(review_items),
+                    classified_emails=classified_emails,
+                    before_email_count=len(classified_emails),
+                    after_email_count=len(classified_emails),
                 )
+                st.session_state["last_summary_df"] = summary_df
+                st.session_state["last_detailed_df"] = detailed_df
 
                 st.success("Reports regenerated after review.")
-                st.subheader("Updated Detailed Report Preview")
-                st.dataframe(detailed_df, use_container_width=True)
-
-                st.subheader("Updated Summary Report")
-                st.dataframe(summary_df, use_container_width=True)
             except Exception as exc:
                 st.error(f"Error while regenerating reports: {exc}")
+
+st.divider()
+st.subheader("Promotional Emails Ready for Safe Cleanup")
+
+if classified_emails:
+    deletable_items = get_deletable_emails(classified_emails)
+
+    if not deletable_items:
+        st.info("No promotional emails currently marked as safe for trashing.")
+    else:
+        preview_rows = []
+        for item in deletable_items:
+            email = item["email"]
+            classification = item["classification"]
+            preview_rows.append(
+                {
+                    "email_id": email.get("email_id", ""),
+                    "sender": email.get("sender", ""),
+                    "subject": email.get("subject", ""),
+                    "date": email.get("date", ""),
+                    "category": classification.get("category", ""),
+                    "classification_source": classification.get("classification_source", ""),
+                    "confidence": classification.get("confidence", ""),
+                    "action": item.get("action", "kept"),
+                    "reason": classification.get("reason", ""),
+                }
+            )
+
+        preview_df = pd.DataFrame(preview_rows)
+        st.write(f"{len(preview_df)} promotional emails are eligible for safe trashing.")
+        st.dataframe(preview_df, use_container_width=True)
+else:
+    st.info("Scan emails first to preview promotional cleanup candidates.")

@@ -91,12 +91,20 @@ def extract_sender_email(sender: str) -> str:
 
 def extract_sender_domain(sender: str) -> str:
     """
-    Extract domain from sender email.
+    Extract a useful domain from sender email.
+    Tries to reduce subdomains like mail.audible.in -> audible.in
     """
     email = extract_sender_email(sender)
-    if "@" in email:
-        return email.split("@", 1)[1]
-    return email
+    if "@" not in email:
+        return email
+
+    domain = email.split("@", 1)[1].lower()
+    parts = domain.split(".")
+
+    if len(parts) >= 2:
+        return ".".join(parts[-2:])
+
+    return domain
 
 
 def add_memory_entry(sender_key: str, category: str) -> None:

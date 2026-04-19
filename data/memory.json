@@ -1,1 +1,6 @@
-{}
+{
+  "accounts.google.com": "bank",
+  "noreply@accounts.google.com": "bank",
+  "jobalert.naukri.com": "job",
+  "jobalert.indeed.com": "job"
+}

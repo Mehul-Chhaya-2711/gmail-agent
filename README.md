@@ -217,3 +217,6 @@ This is a safe, agentic email operations system built on:
 - Human-in-the-loop learning  
 - Safe action execution  
 - Auditability  
+
+
+<img width="1536" height="1024" alt="image" src="https://github.com/user-attachments/assets/c53d4322-edf2-43a9-9c0f-a44467f23bb2" />
